@@ -680,6 +680,7 @@ namespace appsSed {
     }
 
     // ==================== RFID RC532 ====================
+    // ==================== RFID RC532 ====================
 
     /**
      * Inicializa o RFID RC532
@@ -703,6 +704,7 @@ namespace appsSed {
 
     /**
      * Lê o UID de um cartão RFID
+     * CORRIGIDO: Tratamento correto dos bytes
      */
     //% subcategory="RFID"
     //% blockId="appssed_rfid_read" block="RFID Ler cartão"
@@ -710,28 +712,37 @@ namespace appsSed {
     export function rfidReadCard(): string {
         rfidInit();
 
+        // Envia comando para procurar cartão
         let buffer = pins.createBuffer(2);
         buffer[0] = RFID_PICC_REQIDL;
         buffer[1] = 0x00;
         pins.i2cWriteBuffer(RFID_ADDR, buffer);
         basic.pause(10);
 
+        // Lê resposta
         const response = pins.i2cReadBuffer(RFID_ADDR, 2);
 
-        if (response[0] === 0x00 && response[1] === 0x00) {
+        if (response.length >= 2 && response[0] === 0x00 && response[1] === 0x00) {
+            // Procura por cartão
             buffer = pins.createBuffer(2);
             buffer[0] = RFID_PICC_ANTICOLL;
             buffer[1] = 0x00;
             pins.i2cWriteBuffer(RFID_ADDR, buffer);
             basic.pause(10);
 
+            // Lê o UID (5 bytes)
             const uidBuffer = pins.i2cReadBuffer(RFID_ADDR, 5);
 
             if (uidBuffer.length >= 5) {
                 let uid = "";
                 for (let i = 0; i < 4; i++) {
-                    const hex = uidBuffer[i + 1].toString(16).toUpperCase();
-                    uid += (hex.length === 1 ? "0" : "") + hex;
+                    // CORRIGIDO: Garantir que é um número e converter para hexadecimal
+                    const byteValue = uidBuffer[i + 1] & 0xFF;
+                    let hex = byteValue.toString(16).toUpperCase();
+                    if (hex.length === 1) {
+                        hex = "0" + hex;
+                    }
+                    uid += hex;
                 }
                 return uid;
             }
@@ -764,9 +775,7 @@ namespace appsSed {
             basic.pause(100);
         }
         return "";
-    }
-
-    // ==================== SENSOR IR ====================
+    }    // ==================== SENSOR IR ====================
 
     /**
      * Inicializa o sensor IR com pino configurável
