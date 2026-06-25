@@ -1,8 +1,4 @@
-// Extensão completa para micro:bit V2 com:
-// - LCD 16x2 I2C (0x27)
-// - Teclado 4x4 (0x20)
-// - Robotbit (Motores DC, Servos)
-// - Sensores (Ultrassônico, Umidade, Temperatura, LDR, etc.)
+// Extensão completa para micro:bit V2 - COM SELEÇÃO DE PINOS
 // namespace: appsSed
 
 //% color="#0078d7" icon="\uf120" weight=100
@@ -36,19 +32,27 @@ namespace appsSed {
     const ROBOTBIT_ADDR = 0x10;
     const MOTOR_A = 0x00;
     const MOTOR_B = 0x02;
-    const MOTOR_A_PWM = 0x01;
-    const MOTOR_B_PWM = 0x03;
 
-    // Pinos dos sensores
-    const ULTRASONIC_TRIG = DigitalPin.P1;
-    const ULTRASONIC_ECHO = DigitalPin.P2;
-    const LDR_PIN = AnalogPin.P0;
-    const SOIL_MOISTURE_PIN = AnalogPin.P1;
-    const TEMP_SENSOR_PIN = AnalogPin.P2;
+    // RFID RC532
+    const RFID_ADDR = 0x28;
+    const RFID_PICC_REQIDL = 0x26;
+    const RFID_PICC_ANTICOLL = 0x93;
+
+    // Pinos padrão dos sensores
+    const DEFAULT_ULTRASONIC_TRIG = DigitalPin.P1;
+    const DEFAULT_ULTRASONIC_ECHO = DigitalPin.P2;
+    const DEFAULT_LDR_PIN = AnalogPin.P0;
+    const DEFAULT_SOIL_MOISTURE_PIN = AnalogPin.P1;
+    const DEFAULT_TEMP_SENSOR_PIN = AnalogPin.P2;
+    const DEFAULT_DHT11_PIN = DigitalPin.P3;
+    const DEFAULT_IR_RECEIVER_PIN = DigitalPin.P4;
+    const DEFAULT_RGB_LED_PIN = DigitalPin.P5;
+    const DEFAULT_BUZZER_PIN = DigitalPin.P6;
 
     let lcdInitialized = false;
     let backlightState = true;
     let robotbitInitialized = false;
+    let rfidInitialized = false;
 
     // Matriz do teclado 4x4
     const KEYPAD_KEYS = [
@@ -60,86 +64,35 @@ namespace appsSed {
 
     // ==================== ENUMS ====================
 
-    // Caracteres especiais pré-definidos
     export enum CustomChar {
-        //% block="Coração"
-        Heart,
-        //% block="Seta Direita"
-        ArrowRight,
-        //% block="Seta Esquerda"
-        ArrowLeft,
-        //% block="Sorriso"
-        Smile,
-        //% block="Quadrado"
-        Square,
-        //% block="Círculo"
-        Circle,
-        //% block="Triângulo"
-        Triangle,
-        //% block="Estrela"
-        Star,
-        //% block="Nota Musical"
-        MusicNote,
-        //% block="Coração Duplo"
-        DoubleHeart
+        Heart, ArrowRight, ArrowLeft, Smile, Square,
+        Circle, Triangle, Star, MusicNote, DoubleHeart
     }
 
-    // Direções dos motores
     export enum MotorDirection {
-        //% block="Frente"
-        Forward,
-        //% block="Trás"
-        Backward,
-        //% block="Parar"
-        Stop,
-        //% block="Esquerda"
-        Left,
-        //% block="Direita"
-        Right
+        Forward, Backward, Stop, Left, Right
     }
 
-    // Motores DC
     export enum Motor {
-        //% block="Motor A"
-        MotorA,
-        //% block="Motor B"
-        MotorB,
-        //% block="Ambos"
-        Both
+        MotorA, MotorB, Both
     }
 
-    // Servos
     export enum Servo {
-        //% block="Servo 1"
-        Servo1,
-        //% block="Servo 2"
-        Servo2,
-        //% block="Servo 3"
-        Servo3,
-        //% block="Servo 4"
-        Servo4,
-        //% block="Servo 5"
-        Servo5,
-        //% block="Servo 6"
-        Servo6,
-        //% block="Servo 7"
-        Servo7,
-        //% block="Servo 8"
-        Servo8
+        Servo1, Servo2, Servo3, Servo4, Servo5, Servo6, Servo7, Servo8
     }
 
-    // Sensores
     export enum Sensor {
-        //% block="Umidade do Solo"
-        SoilMoisture,
-        //% block="Temperatura (LM35)"
-        Temperature,
-        //% block="Luminosidade (LDR)"
-        Light,
-        //% block="Som (Microfone)"
-        Sound,
-        //% block="Distância (Ultrassônico)"
-        Ultrasonic
+        SoilMoisture, Temperature, Light, Sound, Ultrasonic, DHT11
+    }
+
+    export enum LEDColor {
+        Red, Green, Blue, Yellow, Cyan, Magenta, White, Orange, Purple, Off
+    }
+
+    export enum IRKey {
+        Power, VolumeUp, VolumeDown, ChannelUp, ChannelDown,
+        Mute, Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9,
+        OK, Up, Down, Left, Right
     }
 
     // ==================== LCD ====================
@@ -394,17 +347,7 @@ namespace appsSed {
         return "";
     }
 
-    /**
-     * Verifica se uma tecla está pressionada
-     */
-    //% subcategory="Teclado"
-    //% blockId="appssed_keypad_is_pressed" block="Teclado Tecla %key está pressionada"
-    //% weight=77
-    export function keypadIsKeyPressed(key: string, addr: number = 0x20): boolean {
-        return keypadReadKey(addr) === key;
-    }
-
-    // ==================== ROBOTBIT - MOTORES ====================
+    // ==================== ROBOTBIT ====================
 
     /**
      * Inicializa o Robotbit
@@ -428,7 +371,6 @@ namespace appsSed {
     //% weight=69
     export function robotbitMotor(motor: Motor, direction: MotorDirection, speed: number = 50): void {
         robotbitInit();
-
         const pwmSpeed = Math.map(speed, 0, 100, 0, 255);
 
         if (motor === Motor.MotorA || motor === Motor.Both) {
@@ -459,27 +401,13 @@ namespace appsSed {
                 pins.i2cWriteNumber(ROBOTBIT_ADDR, pwmReg, NumberFormat.UInt8BE);
                 pins.i2cWriteNumber(ROBOTBIT_ADDR, 0x00, NumberFormat.UInt8BE);
                 break;
-            case MotorDirection.Left:
-                // Gira à esquerda (motor A para trás, motor B para frente)
-                if (motor === MOTOR_A) {
-                    controlMotor(MOTOR_A, MotorDirection.Backward, speed);
-                } else if (motor === MOTOR_B) {
-                    controlMotor(MOTOR_B, MotorDirection.Forward, speed);
-                }
-                break;
-            case MotorDirection.Right:
-                // Gira à direita (motor A para frente, motor B para trás)
-                if (motor === MOTOR_A) {
-                    controlMotor(MOTOR_A, MotorDirection.Forward, speed);
-                } else if (motor === MOTOR_B) {
-                    controlMotor(MOTOR_B, MotorDirection.Backward, speed);
-                }
+            default:
                 break;
         }
     }
 
     /**
-     * Controla o robô completo (2 motores)
+     * Controla o robô completo
      */
     //% subcategory="Robotbit"
     //% blockId="appssed_robotbit_drive" block="Robotbit Dirigir %direction|velocidade %speed %"
@@ -509,8 +437,6 @@ namespace appsSed {
         }
     }
 
-    // ==================== ROBOTBIT - SERVOS ====================
-
     /**
      * Controla servo do Robotbit
      */
@@ -521,14 +447,10 @@ namespace appsSed {
     export function robotbitServo(servo: Servo, angle: number): void {
         robotbitInit();
 
-        const servoMap = [
-            0x08, 0x09, 0x0A, 0x0B,  // Servos 1-4
-            0x0C, 0x0D, 0x0E, 0x0F   // Servos 5-8
-        ];
-
+        const servoMap = [0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F];
         const reg = servoMap[servo];
+
         if (reg !== undefined) {
-            // Converte ângulo para valor PWM (0-180 -> 500-2500 us)
             const pulse = Math.map(angle, 0, 180, 500, 2500);
             const highByte = (pulse >> 8) & 0xFF;
             const lowByte = pulse & 0xFF;
@@ -539,394 +461,664 @@ namespace appsSed {
         }
     }
 
-    /**
-     * Controla múltiplos servos simultaneamente
-     */
-    //% subcategory="Robotbit"
-    //% blockId="appssed_robotbit_servos" block="Robotbit Servos %servo1:%angle1°|%servo2:%angle2°|%servo3:%angle3°|%servo4:%angle4°"
-    //% angle1.min=0 angle1.max=180
-    //% angle2.min=0 angle2.max=180
-    //% angle3.min=0 angle3.max=180
-    //% angle4.min=0 angle4.max=180
-    //% weight=66
-    export function robotbitServos(
-        servo1: Servo, angle1: number,
-        servo2: Servo, angle2: number,
-        servo3: Servo, angle3: number,
-        servo4: Servo, angle4: number
-    ): void {
-        robotbitServo(servo1, angle1);
-        robotbitServo(servo2, angle2);
-        robotbitServo(servo3, angle3);
-        robotbitServo(servo4, angle4);
-    }
-
-    // ==================== SENSORES ====================
+    // ==================== SENSORES COM SELEÇÃO DE PINOS ====================
 
     /**
-     * Lê sensor ultrassônico HC-SR04
+     * Lê sensor ultrassônico HC-SR04 com pinos configuráveis
+     * @param trig Pino de trigger
+     * @param echo Pino de echo
      * @returns Distância em cm
      */
     //% subcategory="Sensores"
-    //% blockId="appssed_ultrasonic_read" block="Sensor Ultrassônico ler distância"
-    //% weight=60
-    export function ultrasonicRead(): number {
-        // Envia pulso de trigger
-        pins.digitalWritePin(ULTRASONIC_TRIG, 0);
+    //% blockId="appssed_ultrasonic_read" block="Sensor Ultrassônico ler distância |trigger %trig|echo %echo"
+    //% weight=65
+    export function ultrasonicRead(trig: DigitalPin = DEFAULT_ULTRASONIC_TRIG, echo: DigitalPin = DEFAULT_ULTRASONIC_ECHO): number {
+        pins.digitalWritePin(trig, 0);
         control.waitMicros(2);
-        pins.digitalWritePin(ULTRASONIC_TRIG, 1);
+        pins.digitalWritePin(trig, 1);
         control.waitMicros(10);
-        pins.digitalWritePin(ULTRASONIC_TRIG, 0);
+        pins.digitalWritePin(trig, 0);
 
-        // Lê o eco
-        const duration = pins.pulseIn(ULTRASONIC_ECHO, PulseValue.High, 30000);
-
+        const duration = pins.pulseIn(echo, PulseValue.High, 30000);
         if (duration > 0) {
-            // Velocidade do som = 343 m/s = 0.0343 cm/us
-            // Distância = (tempo * velocidade) / 2
             return Math.floor(duration * 0.0343 / 2);
         }
         return -1;
     }
 
     /**
-     * Lê sensor de umidade do solo
-     * @returns Valor 0-1023 (seco = alto, úmido = baixo)
+     * Lê sensor DHT11 com pino configurável
+     * @param pin Pino do DHT11
+     * @returns Array [temperatura, umidade]
      */
     //% subcategory="Sensores"
-    //% blockId="appssed_soil_read" block="Sensor Umidade do Solo ler"
-    //% weight=59
-    export function soilMoistureRead(): number {
-        return pins.analogReadPin(SOIL_MOISTURE_PIN);
+    //% blockId="appssed_dht11_read" block="Sensor DHT11 ler |pino %pin"
+    //% weight=64
+    export function dht11Read(pin: DigitalPin = DEFAULT_DHT11_PIN): number[] {
+        let data: number[] = [0, 0, 0, 0, 0];
+        let result: number[] = [0, 0];
+
+        // Inicia comunicação
+        pins.digitalWritePin(pin, 0);
+        basic.pause(18);
+        pins.digitalWritePin(pin, 1);
+        control.waitMicros(30);
+
+        // Aguarda resposta
+        let response = false;
+        for (let i = 0; i < 100; i++) {
+            if (pins.digitalReadPin(pin) === 0) {
+                response = true;
+                break;
+            }
+            control.waitMicros(10);
+        }
+
+        if (response) {
+            while (pins.digitalReadPin(pin) === 0) { }
+            while (pins.digitalReadPin(pin) === 1) { }
+
+            for (let i = 0; i < 40; i++) {
+                while (pins.digitalReadPin(pin) === 0) { }
+                const startTime = control.micros();
+                while (pins.digitalReadPin(pin) === 1) { }
+                const duration = control.micros() - startTime;
+
+                if (duration > 50) {
+                    data[Math.floor(i / 8)] |= (1 << (7 - (i % 8)));
+                }
+            }
+
+            const checksum = (data[0] + data[1] + data[2] + data[3]) & 0xFF;
+            if (checksum === data[4]) {
+                result[0] = data[2];
+                result[1] = data[0];
+            } else {
+                result[0] = -1;
+                result[1] = -1;
+            }
+        }
+
+        return result;
     }
 
     /**
-     * Lê sensor de temperatura LM35
-     * @returns Temperatura em °C
+     * Lê temperatura do DHT11 com pino configurável
      */
     //% subcategory="Sensores"
-    //% blockId="appssed_temp_read" block="Sensor Temperatura LM35 ler"
-    //% weight=58
-    export function temperatureRead(): number {
-        const reading = pins.analogReadPin(TEMP_SENSOR_PIN);
-        // LM35: 10mV/°C, micro:bit ADC 0-1023 = 0-3.3V
-        const voltage = (reading / 1023) * 3300; // mV
+    //% blockId="appssed_dht11_temp" block="Sensor DHT11 ler temperatura °C |pino %pin"
+    //% weight=63
+    export function dht11Temperature(pin: DigitalPin = DEFAULT_DHT11_PIN): number {
+        const data = dht11Read(pin);
+        return data[0];
+    }
+
+    /**
+     * Lê umidade do DHT11 com pino configurável
+     */
+    //% subcategory="Sensores"
+    //% blockId="appssed_dht11_humidity" block="Sensor DHT11 ler umidade % |pino %pin"
+    //% weight=62
+    export function dht11Humidity(pin: DigitalPin = DEFAULT_DHT11_PIN): number {
+        const data = dht11Read(pin);
+        return data[1];
+    }
+
+    /**
+     * Lê sensor de umidade do solo com pino configurável
+     */
+    //% subcategory="Sensores"
+    //% blockId="appssed_soil_read" block="Sensor Umidade do Solo ler |pino %pin"
+    //% weight=61
+    export function soilMoistureRead(pin: AnalogPin = DEFAULT_SOIL_MOISTURE_PIN): number {
+        return pins.analogReadPin(pin);
+    }
+
+    /**
+     * Lê sensor de temperatura LM35 com pino configurável
+     */
+    //% subcategory="Sensores"
+    //% blockId="appssed_temp_read" block="Sensor Temperatura LM35 ler |pino %pin"
+    //% weight=60
+    export function temperatureRead(pin: AnalogPin = DEFAULT_TEMP_SENSOR_PIN): number {
+        const reading = pins.analogReadPin(pin);
+        const voltage = (reading / 1023) * 3300;
         return Math.round(voltage / 10);
     }
 
     /**
-     * Lê sensor de luminosidade LDR
-     * @returns Valor 0-1023 (claro = alto, escuro = baixo)
+     * Lê sensor de luminosidade LDR com pino configurável
      */
     //% subcategory="Sensores"
-    //% blockId="appssed_ldr_read" block="Sensor Luminosidade LDR ler"
+    //% blockId="appssed_ldr_read" block="Sensor Luminosidade LDR ler |pino %pin"
+    //% weight=59
+    export function ldrRead(pin: AnalogPin = DEFAULT_LDR_PIN): number {
+        return pins.analogReadPin(pin);
+    }
+
+    /**
+     * Lê sensor de som com pino configurável
+     */
+    //% subcategory="Sensores"
+    //% blockId="appssed_sound_read" block="Sensor Som ler |pino %pin"
+    //% weight=58
+    export function soundRead(pin: AnalogPin = AnalogPin.P3): number {
+        return pins.analogReadPin(pin);
+    }
+
+    /**
+     * Lê qualquer sensor analógico com pino configurável
+     */
+    //% subcategory="Sensores"
+    //% blockId="appssed_analog_read" block="Ler pino analógico %pin"
     //% weight=57
-    export function ldrRead(): number {
-        return pins.analogReadPin(LDR_PIN);
+    export function analogRead(pin: AnalogPin): number {
+        return pins.analogReadPin(pin);
     }
 
     /**
-     * Lê sensor de som (microfone)
-     * @returns Valor 0-1023
+     * Lê qualquer sensor digital com pino configurável
      */
     //% subcategory="Sensores"
-    //% blockId="appssed_sound_read" block="Sensor Som ler"
+    //% blockId="appssed_digital_read" block="Ler pino digital %pin"
     //% weight=56
-    export function soundRead(): number {
-        return pins.analogReadPin(AnalogPin.P3);
+    export function digitalRead(pin: DigitalPin): number {
+        return pins.digitalReadPin(pin);
     }
 
     /**
-     * Lê qualquer sensor analógico
+     * Exibe leitura de sensor no LCD com pinos configuráveis
      */
     //% subcategory="Sensores"
-    //% blockId="appssed_sensor_read" block="Sensor %sensor ler"
-    //% weight=55
-    export function sensorRead(sensor: Sensor): number {
-        switch (sensor) {
-            case Sensor.SoilMoisture:
-                return soilMoistureRead();
-            case Sensor.Temperature:
-                return temperatureRead();
-            case Sensor.Light:
-                return ldrRead();
-            case Sensor.Sound:
-                return soundRead();
-            case Sensor.Ultrasonic:
-                return ultrasonicRead();
-            default:
-                return 0;
-        }
-    }
-
-    /**
-     * Exibe leitura de sensor no LCD
-     */
-    //% subcategory="Sensores"
-    //% blockId="appssed_sensor_show" block="Sensor %sensor|exibir no LCD linha %row coluna %col"
+    //% blockId="appssed_sensor_show" block="Exibir sensor no LCD |%sensor|pino %pin|linha %row coluna %col"
     //% row.min=0 row.max=1
     //% col.min=0 col.max=15
-    //% weight=54
-    export function sensorShowOnLCD(sensor: Sensor, row: number = 0, col: number = 0): void {
+    //% weight=55
+    export function sensorShowOnLCD(sensor: Sensor, pin: any, row: number = 0, col: number = 0): void {
         if (!lcdInitialized) lcdInit(LCD_ADDR);
 
-        const value = sensorRead(sensor);
+        let value = 0;
         let label = "";
         let unit = "";
 
         switch (sensor) {
             case Sensor.SoilMoisture:
-                label = "Umidade:";
+                value = soilMoistureRead(pin as AnalogPin);
+                label = "Solo:";
                 unit = "";
                 break;
             case Sensor.Temperature:
+                value = temperatureRead(pin as AnalogPin);
                 label = "Temp:";
                 unit = "°C";
                 break;
             case Sensor.Light:
+                value = ldrRead(pin as AnalogPin);
                 label = "Luz:";
                 unit = "";
                 break;
             case Sensor.Sound:
+                value = soundRead(pin as AnalogPin);
                 label = "Som:";
                 unit = "";
                 break;
             case Sensor.Ultrasonic:
+                value = ultrasonicRead(pin as DigitalPin, pin as DigitalPin);
                 label = "Dist:";
                 unit = "cm";
+                break;
+            case Sensor.DHT11:
+                value = dht11Temperature(pin as DigitalPin);
+                label = "DHT:";
+                unit = "°C";
                 break;
         }
 
         lcdSetCursor(row, col);
-        lcdShowText(label + value + unit, row, col);
+        const displayText = label + value + unit;
+        lcdShowText(displayText, row, col);
+    }
+
+    // ==================== RFID RC532 ====================
+
+    /**
+     * Inicializa o RFID RC532
+     */
+    //% subcategory="RFID"
+    //% blockId="appssed_rfid_init" block="RFID Inicializar"
+    //% weight=50
+    export function rfidInit(): void {
+        if (!rfidInitialized) {
+            pins.i2cWriteNumber(RFID_ADDR, 0x00, NumberFormat.UInt8BE);
+            pins.i2cWriteNumber(RFID_ADDR, 0x80, NumberFormat.UInt8BE);
+            basic.pause(10);
+
+            pins.i2cWriteNumber(RFID_ADDR, 0x01, NumberFormat.UInt8BE);
+            pins.i2cWriteNumber(RFID_ADDR, 0x0E, NumberFormat.UInt8BE);
+            basic.pause(10);
+
+            rfidInitialized = true;
+        }
+    }
+
+    /**
+     * Lê o UID de um cartão RFID
+     */
+    //% subcategory="RFID"
+    //% blockId="appssed_rfid_read" block="RFID Ler cartão"
+    //% weight=49
+    export function rfidReadCard(): string {
+        rfidInit();
+
+        let buffer = pins.createBuffer(2);
+        buffer[0] = RFID_PICC_REQIDL;
+        buffer[1] = 0x00;
+        pins.i2cWriteBuffer(RFID_ADDR, buffer);
+        basic.pause(10);
+
+        const response = pins.i2cReadBuffer(RFID_ADDR, 2);
+
+        if (response[0] === 0x00 && response[1] === 0x00) {
+            buffer = pins.createBuffer(2);
+            buffer[0] = RFID_PICC_ANTICOLL;
+            buffer[1] = 0x00;
+            pins.i2cWriteBuffer(RFID_ADDR, buffer);
+            basic.pause(10);
+
+            const uidBuffer = pins.i2cReadBuffer(RFID_ADDR, 5);
+
+            if (uidBuffer.length >= 5) {
+                let uid = "";
+                for (let i = 0; i < 4; i++) {
+                    const hex = uidBuffer[i + 1].toString(16).toUpperCase();
+                    uid += (hex.length === 1 ? "0" : "") + hex;
+                }
+                return uid;
+            }
+        }
+
+        return "";
+    }
+
+    /**
+     * Verifica se um cartão está presente
+     */
+    //% subcategory="RFID"
+    //% blockId="appssed_rfid_present" block="RFID Cartão presente?"
+    //% weight=48
+    export function rfidCardPresent(): boolean {
+        return rfidReadCard() !== "";
+    }
+
+    /**
+     * Aguarda um cartão RFID
+     */
+    //% subcategory="RFID"
+    //% blockId="appssed_rfid_wait" block="RFID Aguardar cartão %timeout ms"
+    //% weight=47
+    export function rfidWaitForCard(timeout: number = 0): string {
+        const start = control.millis();
+        while (timeout === 0 || control.millis() - start < timeout) {
+            const uid = rfidReadCard();
+            if (uid !== "") return uid;
+            basic.pause(100);
+        }
+        return "";
+    }
+
+    // ==================== SENSOR IR ====================
+
+    /**
+     * Inicializa o sensor IR com pino configurável
+     */
+    //% subcategory="Infravermelho"
+    //% blockId="appssed_ir_init" block="IR Inicializar |pino %pin"
+    //% weight=45
+    export function irInit(pin: DigitalPin = DEFAULT_IR_RECEIVER_PIN): void {
+        pins.digitalWritePin(pin, 1);
+    }
+
+    /**
+     * Lê código IR com pino configurável
+     */
+    //% subcategory="Infravermelho"
+    //% blockId="appssed_ir_read" block="IR Ler código |pino %pin"
+    //% weight=44
+    export function irReadCode(pin: DigitalPin = DEFAULT_IR_RECEIVER_PIN): number {
+        let pulseCount = 0;
+        let code = 0;
+        let startTime = control.micros();
+
+        while (pins.digitalReadPin(pin) === 1) {
+            if (control.micros() - startTime > 100000) return 0;
+        }
+
+        while (pulseCount < 32) {
+            const highTime = measurePulse(pin, 0);
+            const lowTime = measurePulse(pin, 1);
+
+            if (highTime > 1000 && lowTime > 1000) {
+                code = (code << 1) | 1;
+            } else if (highTime > 1000 && lowTime < 1000) {
+                code = (code << 1) | 0;
+            } else {
+                return 0;
+            }
+            pulseCount++;
+        }
+
+        return code;
+    }
+
+    function measurePulse(pin: DigitalPin, state: number): number {
+        const start = control.micros();
+        while (pins.digitalReadPin(pin) === state) {
+            if (control.micros() - start > 5000) return 5000;
+        }
+        return control.micros() - start;
+    }
+
+    /**
+     * Lê tecla IR com pino configurável
+     */
+    //% subcategory="Infravermelho"
+    //% blockId="appssed_ir_read_key" block="IR Ler tecla |pino %pin"
+    //% weight=43
+    export function irReadKey(pin: DigitalPin = DEFAULT_IR_RECEIVER_PIN): IRKey {
+        const code = irReadCode(pin);
+        const keyMap: { [key: number]: IRKey } = {
+            0x00FF: IRKey.Power,
+            0x40BF: IRKey.VolumeUp,
+            0xC03F: IRKey.VolumeDown,
+            0x6897: IRKey.Num0,
+            0x30CF: IRKey.Num1,
+            0x18E7: IRKey.Num2,
+            0x7A85: IRKey.Num3,
+            0x10EF: IRKey.Num4,
+            0x38C7: IRKey.Num5,
+            0x5AA5: IRKey.Num6,
+            0x42BD: IRKey.Num7,
+            0x4AB5: IRKey.Num8,
+            0x52AD: IRKey.Num9,
+            0x02FD: IRKey.OK,
+            0x9867: IRKey.Up,
+            0xD827: IRKey.Down,
+            0xE01F: IRKey.Left,
+            0x609F: IRKey.Right
+        };
+
+        return keyMap[code] || IRKey.Power;
+    }
+
+    /**
+     * Verifica se uma tecla IR foi pressionada
+     */
+    //% subcategory="Infravermelho"
+    //% blockId="appssed_ir_is_pressed" block="IR Tecla %key pressionada? |pino %pin"
+    //% weight=42
+    export function irIsKeyPressed(key: IRKey, pin: DigitalPin = DEFAULT_IR_RECEIVER_PIN): boolean {
+        return irReadKey(pin) === key;
+    }
+
+    // ==================== LEDs ====================
+
+    /**
+     * Acende um LED normal
+     */
+    //% subcategory="LEDs"
+    //% blockId="appssed_led_on" block="LED no pino %pin|ligar %state"
+    //% weight=40
+    export function ledOn(pin: DigitalPin, state: boolean): void {
+        pins.digitalWritePin(pin, state ? 1 : 0);
+    }
+
+    /**
+     * Controla intensidade de um LED (PWM)
+     */
+    //% subcategory="LEDs"
+    //% blockId="appssed_led_pwm" block="LED no pino %pin|intensidade %value %"
+    //% value.min=0 value.max=100
+    //% weight=39
+    export function ledPWM(pin: DigitalPin, value: number): void {
+        const pwmValue = Math.map(value, 0, 100, 0, 1023);
+        pins.analogWritePin(pin, pwmValue);
+    }
+
+    /**
+     * Pisca um LED
+     */
+    //% subcategory="LEDs"
+    //% blockId="appssed_led_blink" block="LED no pino %pin|piscar %times vezes|velocidade %speed ms"
+    //% weight=38
+    export function ledBlink(pin: DigitalPin, times: number, speed: number = 500): void {
+        for (let i = 0; i < times; i++) {
+            pins.digitalWritePin(pin, 1);
+            basic.pause(speed);
+            pins.digitalWritePin(pin, 0);
+            if (i < times - 1) basic.pause(speed);
+        }
+    }
+
+    // ==================== LEDs RGB ====================
+
+    /**
+     * Inicializa LED RGB com pino configurável
+     */
+    //% subcategory="LEDs RGB"
+    //% blockId="appssed_rgb_init" block="RGB LED Inicializar |pino %pin"
+    //% weight=35
+    export function rgbInit(pin: DigitalPin = DEFAULT_RGB_LED_PIN): void {
+        pins.digitalWritePin(pin, 0);
+    }
+
+    /**
+     * Define cor do LED RGB com pino configurável
+     */
+    //% subcategory="LEDs RGB"
+    //% blockId="appssed_rgb_color" block="RGB LED Definir cor %color |pino %pin"
+    //% weight=34
+    export function rgbSetColor(color: LEDColor, pin: DigitalPin = DEFAULT_RGB_LED_PIN): void {
+        const colors: { [key: number]: number[] } = {
+            [LEDColor.Red]: [255, 0, 0],
+            [LEDColor.Green]: [0, 255, 0],
+            [LEDColor.Blue]: [0, 0, 255],
+            [LEDColor.Yellow]: [255, 255, 0],
+            [LEDColor.Cyan]: [0, 255, 255],
+            [LEDColor.Magenta]: [255, 0, 255],
+            [LEDColor.White]: [255, 255, 255],
+            [LEDColor.Orange]: [255, 165, 0],
+            [LEDColor.Purple]: [128, 0, 128],
+            [LEDColor.Off]: [0, 0, 0]
+        };
+
+        const rgb = colors[color] || [0, 0, 0];
+        const data = pins.createBuffer(4);
+        data[0] = 0x00;
+        data[1] = rgb[0];
+        data[2] = rgb[1];
+        data[3] = rgb[2];
+
+        pins.i2cWriteBuffer(pin, data);
+    }
+
+    /**
+     * Define cor RGB com valores personalizados
+     */
+    //% subcategory="LEDs RGB"
+    //% blockId="appssed_rgb_custom" block="RGB LED Definir R:%red G:%green B:%blue |pino %pin"
+    //% red.min=0 red.max=255
+    //% green.min=0 green.max=255
+    //% blue.min=0 blue.max=255
+    //% weight=33
+    export function rgbSetCustom(red: number, green: number, blue: number, pin: DigitalPin = DEFAULT_RGB_LED_PIN): void {
+        const data = pins.createBuffer(4);
+        data[0] = 0x00;
+        data[1] = red;
+        data[2] = green;
+        data[3] = blue;
+        pins.i2cWriteBuffer(pin, data);
+    }
+
+    /**
+     * Efeito de fade no LED RGB
+     */
+    //% subcategory="LEDs RGB"
+    //% blockId="appssed_rgb_fade" block="RGB LED Efeito fade %speed ms |pino %pin"
+    //% speed.min=1 speed.max=50
+    //% weight=32
+    export function rgbFade(speed: number = 10, pin: DigitalPin = DEFAULT_RGB_LED_PIN): void {
+        for (let i = 0; i < 255; i++) {
+            rgbSetCustom(i, 0, 0, pin);
+            basic.pause(speed);
+        }
+        for (let i = 255; i > 0; i--) {
+            rgbSetCustom(i, 0, 0, pin);
+            basic.pause(speed);
+        }
+    }
+
+    /**
+     * Efeito de arco-íris no LED RGB
+     */
+    //% subcategory="LEDs RGB"
+    //% blockId="appssed_rgb_rainbow" block="RGB LED Efeito arco-íris %speed ms |pino %pin"
+    //% speed.min=1 speed.max=100
+    //% weight=31
+    export function rgbRainbow(speed: number = 20, pin: DigitalPin = DEFAULT_RGB_LED_PIN): void {
+        const colors = [
+            [255, 0, 0], [255, 127, 0], [255, 255, 0],
+            [0, 255, 0], [0, 0, 255], [75, 0, 130],
+            [148, 0, 211]
+        ];
+
+        for (let i = 0; i < colors.length; i++) {
+            const c = colors[i];
+            rgbSetCustom(c[0], c[1], c[2], pin);
+            basic.pause(speed);
+        }
+    }
+
+    // ==================== BUZZER ====================
+
+    /**
+     * Toca um som no buzzer com pino configurável
+     */
+    //% subcategory="Buzzer"
+    //% blockId="appssed_buzzer_tone" block="Buzzer Tocar %frequency Hz|por %duration ms |pino %pin"
+    //% weight=30
+    export function buzzerTone(frequency: number, duration: number = 1000, pin: DigitalPin = DEFAULT_BUZZER_PIN): void {
+        pins.analogWritePin(pin, 512);
+        pins.analogSetPeriod(pin, 1000000 / frequency);
+        basic.pause(duration);
+        pins.analogWritePin(pin, 0);
+    }
+
+    /**
+     * Toca uma nota musical com pino configurável
+     */
+    //% subcategory="Buzzer"
+    //% blockId="appssed_buzzer_note" block="Buzzer Tocar nota %note|por %duration ms |pino %pin"
+    //% weight=29
+    export function buzzerNote(note: string, duration: number = 500, pin: DigitalPin = DEFAULT_BUZZER_PIN): void {
+        const notes: { [key: string]: number } = {
+            "C4": 262, "D4": 294, "E4": 330, "F4": 349,
+            "G4": 392, "A4": 440, "B4": 494, "C5": 523,
+            "D5": 587, "E5": 659, "F5": 698, "G5": 784,
+            "A5": 880, "B5": 988, "C6": 1047
+        };
+
+        const freq = notes[note] || 440;
+        buzzerTone(freq, duration, pin);
+    }
+
+    /**
+     * Toca uma melodia com pino configurável
+     */
+    //% subcategory="Buzzer"
+    //% blockId="appssed_buzzer_melody" block="Buzzer Tocar melodia %melody|%tempo ms |pino %pin"
+    //% weight=28
+    export function buzzerMelody(melody: string[], tempo: number = 300, pin: DigitalPin = DEFAULT_BUZZER_PIN): void {
+        for (let i = 0; i < melody.length; i++) {
+            if (melody[i] === "R") {
+                basic.pause(tempo);
+            } else {
+                buzzerNote(melody[i], tempo, pin);
+            }
+        }
     }
 
     // ==================== EXEMPLOS ====================
 
     /**
-     * Exemplo: Robô seguidor de linha (simulado com sensores)
+     * Exemplo: Sensor Ultrassônico com pinos configuráveis
      */
     //% subcategory="Exemplos"
-    //% blockId="appssed_example_line_follower" block="Exemplo: Robô seguidor de linha"
-    //% weight=10
-    export function exampleLineFollower(): void {
+    //% blockId="appssed_example_ultrasonic" block="Exemplo: Sensor Ultrassônico |trigger %trig|echo %echo"
+    //% weight=6
+    export function exampleUltrasonic(trig: DigitalPin = DEFAULT_ULTRASONIC_TRIG, echo: DigitalPin = DEFAULT_ULTRASONIC_ECHO): void {
         lcdInit(LCD_ADDR);
-        robotbitInit();
 
         lcdClear();
-        lcdShowText("Seguidor Linha", 0, 0);
-        lcdShowText("Iniciando...", 1, 0);
-        basic.pause(2000);
+        lcdShowText("Ultrassônico", 0, 0);
 
         while (true) {
-            // Simula leitura de sensores de linha (usando LDR)
-            const leftSensor = ldrRead();
-            const rightSensor = ldrRead();
+            const dist = ultrasonicRead(trig, echo);
+            lcdSetCursor(1, 0);
+            lcdShowText("Dist: " + dist + "cm  ", 1, 0);
 
-            // Se ambos os sensores detectarem linha (escuro)
-            if (leftSensor < 300 && rightSensor < 300) {
-                robotbitDrive(MotorDirection.Forward, 50);
-                lcdShowText("Frente   ", 1, 0);
-            }
-            // Se apenas o sensor esquerdo detectar linha
-            else if (leftSensor < 300) {
-                robotbitDrive(MotorDirection.Left, 50);
-                lcdShowText("Esquerda ", 1, 0);
-            }
-            // Se apenas o sensor direito detectar linha
-            else if (rightSensor < 300) {
-                robotbitDrive(MotorDirection.Right, 50);
-                lcdShowText("Direita  ", 1, 0);
-            }
-            // Se nenhum sensor detectar linha
-            else {
-                robotbitDrive(MotorDirection.Stop, 0);
-                lcdShowText("Parado   ", 1, 0);
+            // Indicador visual
+            if (dist < 10) {
+                lcdShowText("Muito perto!", 1, 10);
+                rgbSetColor(LEDColor.Red);
+                buzzerTone(500, 200);
+            } else if (dist < 30) {
+                lcdShowText("Perto      ", 1, 10);
+                rgbSetColor(LEDColor.Yellow);
+            } else if (dist > 0) {
+                lcdShowText("Longe      ", 1, 10);
+                rgbSetColor(LEDColor.Green);
             }
 
-            basic.pause(50);
+            basic.pause(200);
         }
     }
 
     /**
-     * Exemplo: Estação meteorológica
+     * Exemplo: Todos os sensores com pinos configuráveis
      */
     //% subcategory="Exemplos"
-    //% blockId="appssed_example_weather" block="Exemplo: Estação Meteorológica"
-    //% weight=9
-    export function exampleWeatherStation(): void {
+    //% blockId="appssed_example_all_sensors" block="Exemplo: Todos os Sensores"
+    //% weight=5
+    export function exampleAllSensors(): void {
         lcdInit(LCD_ADDR);
 
         lcdClear();
-        lcdShowText("Estação Meteo", 0, 0);
+        lcdShowText("Todos Sensores", 0, 0);
         basic.pause(2000);
 
         while (true) {
             lcdClear();
 
-            // Temperatura
-            const temp = temperatureRead();
-            lcdShowText("Temp: " + temp + "°C", 0, 0);
+            // Ultrassônico
+            const dist = ultrasonicRead();
+            lcdShowText("Ultra: " + dist + "cm", 0, 0);
 
-            // Umidade do solo
-            const soil = soilMoistureRead();
-            let soilStatus = "Seca";
-            if (soil < 300) soilStatus = "Molhada";
-            else if (soil < 600) soilStatus = "Úmida";
-            lcdShowText("Solo: " + soilStatus, 1, 0);
+            // DHT11
+            const temp = dht11Temperature();
+            const hum = dht11Humidity();
+            lcdShowText("DHT: " + temp + "°C " + hum + "%", 1, 0);
 
-            // Exibe indicador de luminosidade
+            // LM35
+            const tempLM35 = temperatureRead();
+            lcdShowText("LM35:" + tempLM35 + "°C", 0, 10);
+
+            // LDR
             const light = ldrRead();
-            if (light > 800) {
-                lcdShowSpecialChar(CustomChar.Star, 1, 13);
-            } else {
-                lcdShowText("  ", 1, 13);
+            if (light < 300) {
+                lcdShowSpecialChar(CustomChar.Star, 1, 14);
             }
 
             basic.pause(2000);
-        }
-    }
-
-    /**
-     * Exemplo: Controle de servo com teclado
-     */
-    //% subcategory="Exemplos"
-    //% blockId="appssed_example_servo_control" block="Exemplo: Controle de Servo com Teclado"
-    //% weight=8
-    export function exampleServoControl(): void {
-        lcdInit(LCD_ADDR);
-        keypadInit(KEYPAD_ADDR);
-        robotbitInit();
-
-        let angle = 90;
-        lcdClear();
-        lcdShowText("Servo Control", 0, 0);
-        lcdShowText("A:+ D:-", 1, 0);
-        basic.pause(2000);
-
-        while (true) {
-            lcdClear();
-            lcdShowText("Ângulo: " + angle + "°", 0, 0);
-            lcdShowText("1-8: Servos", 1, 0);
-
-            const key = keypadWaitForKey(100);
-
-            if (key === "A") {
-                angle = Math.min(180, angle + 5);
-                robotbitServo(Servo.Servo1, angle);
-            } else if (key === "D") {
-                angle = Math.max(0, angle - 5);
-                robotbitServo(Servo.Servo1, angle);
-            } else if (key === "1") {
-                robotbitServo(Servo.Servo1, angle);
-            } else if (key === "2") {
-                robotbitServo(Servo.Servo2, angle);
-            } else if (key === "3") {
-                robotbitServo(Servo.Servo3, angle);
-            } else if (key === "4") {
-                robotbitServo(Servo.Servo4, angle);
-            } else if (key === "5") {
-                robotbitServo(Servo.Servo5, angle);
-            } else if (key === "6") {
-                robotbitServo(Servo.Servo6, angle);
-            } else if (key === "7") {
-                robotbitServo(Servo.Servo7, angle);
-            } else if (key === "8") {
-                robotbitServo(Servo.Servo8, angle);
-            }
-
-            basic.pause(50);
-        }
-    }
-
-    /**
-     * Exemplo: Carro com controle remoto via teclado
-     */
-    //% subcategory="Exemplos"
-    //% blockId="appssed_example_rc_car" block="Exemplo: Carro RC com Teclado"
-    //% weight=7
-    export function exampleRCCar(): void {
-        lcdInit(LCD_ADDR);
-        keypadInit(KEYPAD_ADDR);
-        robotbitInit();
-
-        lcdClear();
-        lcdShowText("Carro RC", 0, 6);
-        lcdShowText("Teclas 2,4,6,8", 1, 0);
-        basic.pause(2000);
-
-        let speed = 50;
-
-        while (true) {
-            const key = keypadReadKey();
-
-            if (key === "8") {
-                robotbitDrive(MotorDirection.Forward, speed);
-                lcdShowText("Frente  ", 1, 0);
-            } else if (key === "2") {
-                robotbitDrive(MotorDirection.Backward, speed);
-                lcdShowText("Trás    ", 1, 0);
-            } else if (key === "4") {
-                robotbitDrive(MotorDirection.Left, speed);
-                lcdShowText("Esquerda", 1, 0);
-            } else if (key === "6") {
-                robotbitDrive(MotorDirection.Right, speed);
-                lcdShowText("Direita ", 1, 0);
-            } else if (key === "5") {
-                robotbitDrive(MotorDirection.Stop, 0);
-                lcdShowText("Parado  ", 1, 0);
-            } else if (key === "A") {
-                speed = Math.min(100, speed + 10);
-                lcdShowText("Vel: " + speed + "%", 1, 0);
-            } else if (key === "B") {
-                speed = Math.max(0, speed - 10);
-                lcdShowText("Vel: " + speed + "%", 1, 0);
-            }
-
-            basic.pause(50);
-        }
-    }
-
-    /**
-     * Exemplo: Monitor de sensores no LCD
-     */
-    //% subcategory="Exemplos"
-    //% blockId="appssed_example_sensor_monitor" block="Exemplo: Monitor de Sensores"
-    //% weight=6
-    export function exampleSensorMonitor(): void {
-        lcdInit(LCD_ADDR);
-
-        lcdClear();
-        lcdShowText("Sensores:", 0, 0);
-
-        while (true) {
-            // Linha 0: Temperatura e Luminosidade
-            const temp = temperatureRead();
-            const light = ldrRead();
-            lcdSetCursor(1, 0);
-            lcdShowText("T:" + temp + "°C L:" + light + " ", 1, 0);
-
-            // Mostra indicador visual
-            if (temp > 30) {
-                lcdShowSpecialChar(CustomChar.Heart, 1, 12);
-            } else {
-                lcdShowText(" ", 1, 12);
-            }
-
-            // Verifica tecla para mudar de modo
-            const key = keypadReadKey();
-            if (key === "A") {
-                // Modo ultrassônico
-                const dist = ultrasonicRead();
-                lcdClear();
-                lcdShowText("Distância:", 0, 0);
-                lcdShowText(dist + " cm", 1, 0);
-                basic.pause(3000);
-                lcdClear();
-                lcdShowText("Sensores:", 0, 0);
-            }
-
-            basic.pause(500);
         }
     }
 
@@ -937,7 +1129,7 @@ namespace appsSed {
      */
     //% subcategory="Utilitários"
     //% blockId="appssed_map" block="Mapear %value|de %fromLow-%fromHigh|para %toLow-%toHigh"
-    //% weight=50
+    //% weight=20
     export function mapValue(value: number, fromLow: number, fromHigh: number, toLow: number, toHigh: number): number {
         return Math.map(value, fromLow, fromHigh, toLow, toHigh);
     }
@@ -948,20 +1140,9 @@ namespace appsSed {
     //% subcategory="Utilitários"
     //% blockId="appssed_angle_to_pwm" block="Ângulo %angle°|para PWM"
     //% angle.min=0 angle.max=180
-    //% weight=49
+    //% weight=19
     export function angleToPWM(angle: number): number {
         return Math.map(angle, 0, 180, 500, 2500);
-    }
-
-    /**
-     * Converte PWM para ângulo
-     */
-    //% subcategory="Utilitários"
-    //% blockId="appssed_pwm_to_angle" block="PWM %pwm|para Ângulo"
-    //% pwm.min=500 pwm.max=2500
-    //% weight=48
-    export function pwmToAngle(pwm: number): number {
-        return Math.map(pwm, 500, 2500, 0, 180);
     }
 
     /**
@@ -969,7 +1150,7 @@ namespace appsSed {
      */
     //% subcategory="Utilitários"
     //% blockId="appssed_clamp" block="Limitar %value|entre %min e %max"
-    //% weight=47
+    //% weight=18
     export function clampValue(value: number, min: number, max: number): number {
         return Math.max(min, Math.min(max, value));
     }
