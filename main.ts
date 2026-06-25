@@ -1,8 +1,9 @@
 // Extensão para micro:bit V2 com LCD 16x2 I2C e Teclado 4x4
 // Endereços: LCD 0x27, Teclado 0x20
+// namespace: appsSed
 
 //% color="#0078d7" icon="\uf120" weight=100
-namespace MakerBit {
+namespace appsSed {
     // Constantes para LCD
     const LCD_CLEAR = 0x01;
     const LCD_HOME = 0x02;
@@ -46,32 +47,37 @@ namespace MakerBit {
 
     // Caracteres especiais pré-definidos
     export enum CustomChar {
-        //% block="Heart"
+        //% block="Coração"
         Heart,
-        //% block="Arrow Right"
+        //% block="Seta Direita"
         ArrowRight,
-        //% block="Arrow Left"
+        //% block="Seta Esquerda"
         ArrowLeft,
-        //% block="Smile"
+        //% block="Sorriso"
         Smile,
-        //% block="Square"
+        //% block="Quadrado"
         Square,
-        //% block="Circle"
+        //% block="Círculo"
         Circle,
-        //% block="Triangle"
+        //% block="Triângulo"
         Triangle,
-        //% block="Star"
-        Star
+        //% block="Estrela"
+        Star,
+        //% block="Nota Musical"
+        MusicNote,
+        //% block="Coração Duplo"
+        DoubleHeart
     }
 
     /**
      * Inicializa o LCD 16x2
+     * @param addr Endereço I2C do LCD, padrão 0x27
      */
     //% subcategory="LCD"
-    //% blockId="makerbit_lcd_init" block="Inicializar LCD I2C endereço %addr"
+    //% blockId="appssed_lcd_init" block="LCD Inicializar endereço %addr"
     //% addr.defl=0x27
     //% weight=100
-    export function initLcd(addr: number = 0x27): void {
+    export function lcdInit(addr: number = 0x27): void {
         if (lcdInitialized) return;
 
         // Inicialização do LCD em 4 bits
@@ -129,13 +135,13 @@ namespace MakerBit {
     }
 
     /**
-     * Limpa o display LCD
+     * Limpa o display LCD completamente
      */
     //% subcategory="LCD"
-    //% blockId="makerbit_lcd_clear" block="LCD Limpar display"
-    //% weight=89
-    export function clearLcd(): void {
-        if (!lcdInitialized) initLcd(LCD_ADDR);
+    //% blockId="appssed_lcd_clear" block="LCD Limpar display"
+    //% weight=99
+    export function lcdClear(): void {
+        if (!lcdInitialized) lcdInit(LCD_ADDR);
         lcdCommand(LCD_CLEAR, LCD_ADDR);
         basic.pause(2);
     }
@@ -146,12 +152,12 @@ namespace MakerBit {
      * @param col Coluna (0-15)
      */
     //% subcategory="LCD"
-    //% blockId="makerbit_lcd_cursor" block="LCD posicionar cursor linha %row coluna %col"
+    //% blockId="appssed_lcd_cursor" block="LCD Posicionar cursor linha %row coluna %col"
     //% row.min=0 row.max=1
     //% col.min=0 col.max=15
-    //% weight=88
-    export function lcdCursor(row: number, col: number): void {
-        if (!lcdInitialized) initLcd(LCD_ADDR);
+    //% weight=98
+    export function lcdSetCursor(row: number, col: number): void {
+        if (!lcdInitialized) lcdInit(LCD_ADDR);
         const position = 0x80 + (row * 0x40 + col);
         lcdCommand(position, LCD_ADDR);
     }
@@ -163,13 +169,13 @@ namespace MakerBit {
      * @param col Coluna (0-15)
      */
     //% subcategory="LCD"
-    //% blockId="makerbit_lcd_show_text" block="LCD exibir %text|na linha %row coluna %col"
+    //% blockId="appssed_lcd_show_text" block="LCD Exibir %text|na linha %row coluna %col"
     //% row.min=0 row.max=1
     //% col.min=0 col.max=15
-    //% weight=87
-    export function showText(text: string, row: number = 0, col: number = 0): void {
-        if (!lcdInitialized) initLcd(LCD_ADDR);
-        lcdCursor(row, col);
+    //% weight=97
+    export function lcdShowText(text: string, row: number = 0, col: number = 0): void {
+        if (!lcdInitialized) lcdInit(LCD_ADDR);
+        lcdSetCursor(row, col);
         const chars = text.split('');
         for (let i = 0; i < chars.length && i < 16 - col; i++) {
             lcdData(chars[i].charCodeAt(0), LCD_ADDR);
@@ -182,11 +188,11 @@ namespace MakerBit {
      * @param pattern Array de 8 bytes definindo o padrão
      */
     //% subcategory="LCD"
-    //% blockId="makerbit_lcd_create_char" block="LCD criar caractere %charNum|padrão %pattern"
+    //% blockId="appssed_lcd_create_char" block="LCD Criar caractere %charNum|padrão %pattern"
     //% charNum.min=0 charNum.max=7
-    //% weight=86
-    export function createCustomChar(charNum: number, pattern: number[]): void {
-        if (!lcdInitialized) initLcd(LCD_ADDR);
+    //% weight=96
+    export function lcdCreateChar(charNum: number, pattern: number[]): void {
+        if (!lcdInitialized) lcdInit(LCD_ADDR);
         if (charNum < 0 || charNum > 7) return;
 
         lcdCommand(0x40 + (charNum * 8), LCD_ADDR);
@@ -206,31 +212,34 @@ namespace MakerBit {
      * @param col Coluna (0-15)
      */
     //% subcategory="LCD"
-    //% blockId="makerbit_lcd_show_custom" block="LCD exibir caractere %charNum|na linha %row coluna %col"
+    //% blockId="appssed_lcd_show_custom" block="LCD Exibir caractere %charNum|na linha %row coluna %col"
     //% charNum.min=0 charNum.max=7
     //% row.min=0 row.max=1
     //% col.min=0 col.max=15
-    //% weight=85
-    export function showCustomChar(charNum: number, row: number, col: number): void {
-        if (!lcdInitialized) initLcd(LCD_ADDR);
-        lcdCursor(row, col);
+    //% weight=95
+    export function lcdShowCustomChar(charNum: number, row: number, col: number): void {
+        if (!lcdInitialized) lcdInit(LCD_ADDR);
+        lcdSetCursor(row, col);
         lcdData(charNum, LCD_ADDR);
     }
 
     /**
      * Exibe um caractere especial pré-definido
+     * @param char Caractere especial
+     * @param row Linha (0-1)
+     * @param col Coluna (0-15)
      */
     //% subcategory="LCD"
-    //% blockId="makerbit_lcd_show_special" block="LCD exibir caractere especial %char|na linha %row coluna %col"
+    //% blockId="appssed_lcd_show_special" block="LCD Exibir caractere especial %char|na linha %row coluna %col"
     //% row.min=0 row.max=1
     //% col.min=0 col.max=15
-    //% weight=84
-    export function showSpecialChar(char: CustomChar, row: number, col: number): void {
-        if (!lcdInitialized) initLcd(LCD_ADDR);
+    //% weight=94
+    export function lcdShowSpecialChar(char: CustomChar, row: number, col: number): void {
+        if (!lcdInitialized) lcdInit(LCD_ADDR);
 
         const patterns = getSpecialCharPattern(char);
-        createCustomChar(0, patterns);
-        showCustomChar(0, row, col);
+        lcdCreateChar(0, patterns);
+        lcdShowCustomChar(0, row, col);
     }
 
     /**
@@ -254,31 +263,62 @@ namespace MakerBit {
                 return [0x00, 0x04, 0x0E, 0x1F, 0x00, 0x00, 0x00, 0x00];
             case CustomChar.Star:
                 return [0x00, 0x04, 0x0A, 0x1F, 0x04, 0x0A, 0x11, 0x00];
+            case CustomChar.MusicNote:
+                return [0x00, 0x06, 0x0A, 0x0A, 0x16, 0x12, 0x0E, 0x00];
+            case CustomChar.DoubleHeart:
+                return [0x00, 0x0A, 0x1F, 0x1F, 0x0A, 0x1F, 0x1F, 0x0A];
             default:
                 return [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
         }
     }
 
     /**
-     * Liga/desliga o backlight
+     * Liga/desliga o backlight do LCD
+     * @param state true = ligado, false = desligado
      */
     //% subcategory="LCD"
-    //% blockId="makerbit_lcd_backlight" block="LCD backlight %state"
-    //% weight=83
+    //% blockId="appssed_lcd_backlight" block="LCD Backlight %state"
+    //% weight=93
     export function lcdBacklight(state: boolean): void {
-        if (!lcdInitialized) initLcd(LCD_ADDR);
+        if (!lcdInitialized) lcdInit(LCD_ADDR);
         backlightState = state;
         lcdCommand(0x00, LCD_ADDR);
     }
 
     /**
+     * Exibe texto com rolagem no LCD
+     * @param text Texto a ser exibido
+     * @param row Linha (0-1)
+     * @param speed Velocidade da rolagem em ms
+     */
+    //% subcategory="LCD"
+    //% blockId="appssed_lcd_scroll_text" block="LCD Exibir com rolagem %text|na linha %row|velocidade %speed ms"
+    //% row.min=0 row.max=1
+    //% speed.min=100 speed.max=1000
+    //% weight=92
+    export function lcdScrollText(text: string, row: number = 0, speed: number = 300): void {
+        if (!lcdInitialized) lcdInit(LCD_ADDR);
+
+        // Adiciona espaços para rolagem
+        const paddedText = text + "     ";
+
+        for (let i = 0; i < paddedText.length - 15; i++) {
+            lcdSetCursor(row, 0);
+            const displayText = paddedText.substr(i, 16);
+            lcdShowText(displayText, row, 0);
+            basic.pause(speed);
+        }
+    }
+
+    /**
      * Inicializa o teclado 4x4
+     * @param addr Endereço I2C do teclado, padrão 0x20
      */
     //% subcategory="Teclado"
-    //% blockId="makerbit_keypad_init" block="Inicializar teclado 4x4 endereço %addr"
+    //% blockId="appssed_keypad_init" block="Teclado Inicializar endereço %addr"
     //% addr.defl=0x20
     //% weight=80
-    export function initKeypad(addr: number = 0x20): void {
+    export function keypadInit(addr: number = 0x20): void {
         // Configuração inicial do PCF8574
         pins.i2cWriteNumber(addr, 0xFF, NumberFormat.UInt8BE);
         basic.pause(10);
@@ -286,14 +326,13 @@ namespace MakerBit {
 
     /**
      * Lê uma tecla do teclado 4x4
+     * @param addr Endereço I2C do teclado
      * @returns String com a tecla pressionada ou "" se nenhuma
      */
     //% subcategory="Teclado"
-    //% blockId="makerbit_keypad_read" block="Teclado ler tecla"
+    //% blockId="appssed_keypad_read" block="Teclado Ler tecla"
     //% weight=79
-    export function readKey(): string {
-        const addr = KEYPAD_ADDR;
-
+    export function keypadReadKey(addr: number = 0x20): string {
         // Configuração das colunas como saída e linhas como entrada
         for (let col = 0; col < 4; col++) {
             // Coloca 0 na coluna atual
@@ -325,15 +364,16 @@ namespace MakerBit {
     /**
      * Aguarda até uma tecla ser pressionada
      * @param timeout Tempo máximo de espera em ms (0 = espera infinita)
+     * @param addr Endereço I2C do teclado
      * @returns String com a tecla pressionada
      */
     //% subcategory="Teclado"
-    //% blockId="makerbit_keypad_wait" block="Teclado aguardar tecla %timeout ms"
+    //% blockId="appssed_keypad_wait" block="Teclado Aguardar tecla %timeout ms"
     //% weight=78
-    export function waitForKey(timeout: number = 0): string {
+    export function keypadWaitForKey(timeout: number = 0, addr: number = 0x20): string {
         const start = control.millis();
         while (timeout === 0 || control.millis() - start < timeout) {
-            const key = readKey();
+            const key = keypadReadKey(addr);
             if (key !== "") {
                 return key;
             }
@@ -345,24 +385,25 @@ namespace MakerBit {
     /**
      * Verifica se uma tecla específica foi pressionada
      * @param key Tecla a verificar
+     * @param addr Endereço I2C do teclado
      * @returns true se a tecla foi pressionada
      */
     //% subcategory="Teclado"
-    //% blockId="makerbit_keypad_is_pressed" block="Teclado tecla %key está pressionada"
+    //% blockId="appssed_keypad_is_pressed" block="Teclado Tecla %key está pressionada"
     //% weight=77
-    export function isKeyPressed(key: string): boolean {
-        return readKey() === key;
+    export function keypadIsKeyPressed(key: string, addr: number = 0x20): boolean {
+        return keypadReadKey(addr) === key;
     }
 
     /**
      * Lê todas as teclas pressionadas simultaneamente
+     * @param addr Endereço I2C do teclado
      * @returns Array de strings com as teclas pressionadas
      */
     //% subcategory="Teclado"
-    //% blockId="makerbit_keypad_read_all" block="Teclado ler todas as teclas"
+    //% blockId="appssed_keypad_read_all" block="Teclado Ler todas as teclas"
     //% weight=76
-    export function readAllKeys(): string[] {
-        const addr = KEYPAD_ADDR;
+    export function keypadReadAllKeys(addr: number = 0x20): string[] {
         const pressedKeys: string[] = [];
 
         for (let col = 0; col < 4; col++) {
@@ -387,38 +428,159 @@ namespace MakerBit {
     }
 
     /**
-     * Exemplo completo de uso
+     * Converte tecla para número
+     * @param key Tecla a ser convertida
+     * @returns Número correspondente ou -1 se não for número
+     */
+    //% subcategory="Teclado"
+    //% blockId="appssed_keypad_to_number" block="Teclado Converter %key para número"
+    //% weight=75
+    export function keypadKeyToNumber(key: string): number {
+        const num = parseInt(key);
+        return isNaN(num) ? -1 : num;
+    }
+
+    /**
+     * Exemplo completo de uso - LCD + Teclado
+     * Mostra como usar todos os recursos da extensão
      */
     //% subcategory="Exemplos"
-    //% blockId="makerbit_example_basic" block="Exemplo: LCD + Teclado"
+    //% blockId="appssed_example_complete" block="Exemplo: LCD + Teclado completo"
     //% weight=1
-    export function basicExample(): void {
+    export function exampleComplete(): void {
         // Inicializa os dispositivos
-        initLcd(LCD_ADDR);
-        initKeypad(KEYPAD_ADDR);
+        lcdInit(LCD_ADDR);
+        keypadInit(KEYPAD_ADDR);
 
         // Limpa o display
-        clearLcd();
+        lcdClear();
 
         // Mostra mensagem inicial
-        showText("Pressione uma", 0, 0);
-        showText("tecla", 1, 0);
+        lcdShowText("Pressione uma", 0, 0);
+        lcdShowText("tecla", 1, 5);
 
         // Aguarda uma tecla
-        const key = waitForKey(0);
+        const key = keypadWaitForKey(0);
 
         // Limpa e mostra a tecla
-        clearLcd();
-        showText("Tecla:", 0, 0);
-        showText(key, 1, 5);
+        lcdClear();
+        lcdShowText("Tecla:", 0, 0);
+        lcdShowText(key, 1, 6);
 
         // Mostra caracteres especiais
         basic.pause(2000);
-        clearLcd();
-        showText("Caracteres:", 0, 0);
-        showSpecialChar(CustomChar.Heart, 1, 0);
-        showSpecialChar(CustomChar.Smile, 1, 2);
-        showSpecialChar(CustomChar.Star, 1, 4);
-        showSpecialChar(CustomChar.Square, 1, 6);
+        lcdClear();
+        lcdShowText("Caracteres:", 0, 0);
+        lcdShowSpecialChar(CustomChar.Heart, 1, 0);
+        lcdShowSpecialChar(CustomChar.Smile, 1, 2);
+        lcdShowSpecialChar(CustomChar.Star, 1, 4);
+        lcdShowSpecialChar(CustomChar.Square, 1, 6);
+        lcdShowSpecialChar(CustomChar.MusicNote, 1, 8);
+        lcdShowSpecialChar(CustomChar.DoubleHeart, 1, 10);
+
+        // Exemplo de rolagem
+        basic.pause(3000);
+        lcdClear();
+        lcdScrollText("Texto com rolagem no LCD 16x2!", 0, 250);
+
+        // Exemplo de caracteres personalizados
+        basic.pause(2000);
+        lcdClear();
+        lcdShowText("Criando chars", 0, 0);
+
+        // Cria um caractere personalizado (um quadrado com borda)
+        const customPattern = [0x1F, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x1F];
+        lcdCreateChar(1, customPattern);
+        lcdShowCustomChar(1, 1, 0);
+
+        // Cria outro caractere (uma seta para baixo)
+        const arrowDown = [0x00, 0x04, 0x04, 0x04, 0x04, 0x0E, 0x1F, 0x00];
+        lcdCreateChar(2, arrowDown);
+        lcdShowCustomChar(2, 1, 2);
+
+        lcdShowText("Custom", 1, 4);
+    }
+
+    /**
+     * Exemplo simples - Display de teclas
+     * Mostra as teclas pressionadas no LCD
+     */
+    //% subcategory="Exemplos"
+    //% blockId="appssed_example_key_display" block="Exemplo: Display de teclas no LCD"
+    //% weight=2
+    export function exampleKeyDisplay(): void {
+        // Inicializa os dispositivos
+        lcdInit(LCD_ADDR);
+        keypadInit(KEYPAD_ADDR);
+
+        lcdClear();
+        lcdShowText("Teclas:", 0, 0);
+
+        let lastKey = "";
+
+        while (true) {
+            const key = keypadReadKey(KEYPAD_ADDR);
+            if (key !== "" && key !== lastKey) {
+                lastKey = key;
+                lcdShowText(key + "     ", 1, 0);
+
+                // Se for número, mostra o valor numérico
+                const num = keypadKeyToNumber(key);
+                if (num >= 0) {
+                    lcdShowText("Num:" + num + " ", 1, 8);
+                }
+            }
+            basic.pause(100);
+        }
+    }
+
+    /**
+     * Exemplo - Menu com teclado
+     * Navegação de menu usando as teclas direcionais
+     */
+    //% subcategory="Exemplos"
+    //% blockId="appssed_example_menu" block="Exemplo: Menu com teclado"
+    //% weight=3
+    export function exampleMenu(): void {
+        // Inicializa os dispositivos
+        lcdInit(LCD_ADDR);
+        keypadInit(KEYPAD_ADDR);
+
+        const menuItems = ["Opção 1", "Opção 2", "Opção 3", "Opção 4"];
+        let selected = 0;
+
+        function showMenu(): void {
+            lcdClear();
+            lcdShowText("MENU", 0, 6);
+            lcdShowText(">", 1, 0);
+            lcdShowText(menuItems[selected], 1, 2);
+        }
+
+        showMenu();
+
+        while (true) {
+            const key = keypadReadKey(KEYPAD_ADDR);
+
+            if (key === "A") { // Tecla A = Sair
+                break;
+            } else if (key === "B") { // Tecla B = Selecionar
+                lcdClear();
+                lcdShowText("Selecionado:", 0, 0);
+                lcdShowText(menuItems[selected], 1, 0);
+                basic.pause(2000);
+                showMenu();
+            } else if (key === "C") { // Tecla C = Próximo
+                selected = (selected + 1) % menuItems.length;
+                showMenu();
+            } else if (key === "D") { // Tecla D = Anterior
+                selected = (selected - 1 + menuItems.length) % menuItems.length;
+                showMenu();
+            }
+
+            basic.pause(100);
+        }
+
+        lcdClear();
+        lcdShowText("Menu fechado", 0, 0);
     }
 }
